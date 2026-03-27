@@ -2,18 +2,17 @@ import mongoose , {Schema} from "mongoose";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'
+import { AvailableRoles, Roles } from "../utils/constants.js";
 
-const userSchema = new Schema(
+const UserSchema = new Schema(
     {
-        avatar : {
-            type :{
-                url : String,
-                localPath : String
-            },
-            default :{
-                url : 'https://placehold.co/2Ø0x200',
-                localPath : ''
-            }
+        profilepic : {
+            type : String ,
+            default : 'https://placehold.co/2Ø0x200'
+        },
+        tenantId :{
+            type :  Schema.Types.ObjectId,
+            ref : 'tenant'
         },
         username :{
             type : String ,
@@ -36,6 +35,11 @@ const userSchema = new Schema(
             type : String,
             require : [true , "password is required"] //with custom error 
         },
+        role :{
+            type : String,
+            enum : AvailableRoles,
+            default : Roles.USER
+        },
         isEmailVerified :{
             type : Boolean,
             default : false
@@ -54,6 +58,14 @@ const userSchema = new Schema(
         },
         emailVerificationExpiry : {
             type : Date
+        },
+        createdBy : {
+            type : Schema.Types.ObjectId,
+            ref : 'user',
+        },
+        isActive :{
+            type : Boolean,
+            default : true
         }
     },
     {
@@ -61,17 +73,17 @@ const userSchema = new Schema(
     }
 )
 
-userSchema.pre('save', async function(next){
+UserSchema.pre('save', async function(next){
     if(this.isModified('password')) {
         this.password = await bcrypt.hash(this.password, 8);
     }
 })
 
-userSchema.methods.isPasswordCorrect = async function(password){
+UserSchema.methods.isPasswordCorrect = async function(password){
     return await bcrypt.compare(password , this.password);
 }
 
-userSchema.methods.generateAcessToken = function(){
+UserSchema.methods.generateAcessToken = function(){
     return jwt.sign(
         {
             _id:this._id,
@@ -85,7 +97,7 @@ userSchema.methods.generateAcessToken = function(){
     )
 }
 
-userSchema.methods.generateRefreshToken = function(){
+UserSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id:this._id,
@@ -99,7 +111,7 @@ userSchema.methods.generateRefreshToken = function(){
     )
 }
 
-userSchema.methods.generateTemporaryToken = function(){
+UserSchema.methods.generateTemporaryToken = function(){
     const unhashedtoken = crypto.randomBytes(20).toString('hex');
     const hashedtoken = crypto.createHash('sha256')
                             .update(unhashedtoken)
@@ -109,4 +121,4 @@ userSchema.methods.generateTemporaryToken = function(){
     return {unhashedtoken , hashedtoken , tokenExpriy};
 }
 
-export const User = mongoose.model("User", userSchema)
+export const User = mongoose.model("user", UserSchema);
